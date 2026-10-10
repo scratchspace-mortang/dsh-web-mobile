@@ -839,18 +839,18 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND
      The control's name is untouched: the switch button carries
      aria-label="Auto-continue", and the span is not the accessible name.
      Knob: the glyph size.
-     The selector is keyed on the slot and on the switch's own span, not only on
-     the host's hashed label class: :is() takes the specificity of its most
-     specific argument, so the icon-only label does not depend on stylesheet
-     injection order after a skin reload.
      No width band, so it sits in the mobile band exactly like the freeze pill:
      the 430px band left the text label showing from 431px to 1023px, which is
-     where the owner's phone view sits (freeze glyph shown, label shown). */
-  [data-slot="conversation.input.left"] :is([class*="dshAcComposerLabel"], [role="switch"] > span:first-child) {
+     where the owner's phone view sits (freeze glyph shown, label shown).
+     Match the label span by its class only. The switch's own first span is its
+     thumb, so a [role="switch"] > span variant painted the glyph on the knob
+     (owner's screenshot, 2026-10-10). The class form (specificity 20) already
+     beats the widget's own .dshAcComposerLabel (10) at any injection order. */
+  [data-slot="conversation.input.left"] [class*="dshAcComposerLabel"] {
     font-size: 0;
     line-height: 0;
   }
-  [data-slot="conversation.input.left"] :is([class*="dshAcComposerLabel"], [role="switch"] > span:first-child)::before {
+  [data-slot="conversation.input.left"] [class*="dshAcComposerLabel"]::before {
     content: "♻️";
     font-size: 13px;
     line-height: 1;
