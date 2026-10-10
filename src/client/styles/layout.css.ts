@@ -805,41 +805,63 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND
   [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([data-mobile-nav="stats-ring-reserve"]):not(:has([class*="_primary"] ~ [class*="_primary"])) > [class*="_primary"] {
     top: calc(50% - 28px);
   }
-  /* Reserve the floating key's slot inside the lane (2026-10-10, same root).
+  /* Give the lane its own content width and stop it from eating the row (2026-10-10).
      The key is out of flow, so the lane never counts it and collapses onto
-     whatever is parked at its right end. With the ring reserve present the
-     lane must hold [ring 18][gap 3][pill 30] and still stop 42px before its
-     own right edge (34px key + the host's right:8px), hence min-width 93 and
-     padding-right 42. Above the host's floating-seat boundary the key is in
-     flow again and the lane is already wider than 93px, so both values are
-     inert there. Knob: the two numbers, 42 = key 34 + host offset 8.
+     whatever is parked at its right end: measured 20.9px at 390px, which is how
+     the ring and the third-party Freeze pill ended up in one slot. The lane's
+     real in-flow content is 93px (pill 30 + model chip 26 + ring reserve 18 +
+     gaps), so pin that as the floor and take only it: the lane is officially
+     flex:1 1 auto, and with a min-width it also absorbs the row's slack
+     (measured 135px at 390px), which is exactly the width the tools lane needs
+     for its fixed controls. No padding-right: the key is already lifted out of
+     the ring slot by the rule above, so reserving its 42px on top of the floor
+     only starves the tools lane (measured: the Auto-continue glyph landed on the
+     access-mode chevron). Above the host's floating-seat boundary the lane is
+     already wider than 93px, so the floor is inert there. Knob: the 93.
      Band: 390px and up, measured. Below 390 the tools lane's fixed controls
-     (measured 267px of intrinsic content) plus [ring][pill][key] do not fit
-     the row at all, so reserving the slot there only pushes the pill left
-     into the overflowing tools content: at 360px the pill's centre ended under
-     a tools control. That width class needs the row to wrap (the escape this
-     file already uses for the dual-primary form), not a narrower reservation. */
+     (measured 216px of intrinsic content) plus [ring][pill] do not fit the row,
+     so the reservation there only pushes the pill left into the overflowing
+     tools content: at 360px the pill's centre ended under a tools control. That
+     width class needs the row to wrap (the escape this file already uses for the
+     dual-primary form), not a narrower reservation. */
   @media (min-width: 390px) {
     [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([data-mobile-nav="stats-ring-reserve"]) {
       min-width: 93px;
-      padding-right: 42px;
-      /* Take only what is reserved. The lane is officially flex:1 1 auto, so
-         with a min-width it also absorbs the row's slack (measured 135px at
-         390px against 93px reserved), and that slack is exactly what the tools
-         lane needs for its fixed controls. */
       flex: 0 0 auto;
     }
   }
   /* The widest tenant of the tools lane is dsh-client-auto-continue's text
      label (measured 74.1px + its 7px gap at 390px), and the widget is
      officially flex:0 0 auto, so it cannot shrink: it is what overflows first.
-     The label is dropped, not ellipsized, because the switch button carries
-     the same string as its aria-label ("Auto-continue"), so the control keeps
-     its name, its 36x20 hit box, and its on/off state picture. Same last-resort
-     pattern this file already uses for the header chips. Knob: the band. */
+     The label becomes an icon instead of being dropped: font-size:0 collapses
+     the string (the span keeps its box and the widget's 7px gap), and a
+     ::before paints the recycle glyph at the size the neighbouring icons use.
+     The control's name is untouched: the switch button carries
+     aria-label="Auto-continue", and the span is not the accessible name.
+     Knob: the band and the glyph size. */
   @media (max-width: 430px) {
     [data-slot="conversation.input.left"] [class*="dshAcComposerLabel"] {
-      display: none;
+      font-size: 0;
+      line-height: 0;
+    }
+    [data-slot="conversation.input.left"] [class*="dshAcComposerLabel"]::before {
+      content: "♻️";
+      font-size: 13px;
+      line-height: 1;
+    }
+  }
+  /* The gap tightening is a 390px-class fit, not a style choice: with the
+     glyph in place the tools lane's fixed controls measure 216px against a
+     216px box at 390px, and the official 8px lane gap (widened by the owner's
+     "隔开一点点" round) plus the widget's own 7px label gap are 15px of that.
+     Above 390 the box is wider (measured 284px at 430px), so the official gaps
+     stay. Knob: these two numbers and the band. */
+  @media (max-width: 390px) {
+    [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]) > :first-child {
+      gap: 3px;
+    }
+    [data-slot="conversation.input.left"] [class*="dshAcComposer"] {
+      gap: 4px;
     }
   }
   /* --- dsh-input-traffic Freeze pill: icon-only on phones (2026-10-10) ---
