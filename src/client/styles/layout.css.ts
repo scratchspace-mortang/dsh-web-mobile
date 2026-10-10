@@ -922,6 +922,61 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND
   [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([data-mobile-nav="stats-ring-reserve"]):not(:has([class*="_primary"] ~ [class*="_primary"])) > [class*="_primary"] {
     top: calc(50% - 28px);
   }
+  /* Reserve the floating key's slot inside the lane (2026-10-10, same root).
+     The key is out of flow, so the lane never counts it and collapses onto
+     whatever is parked at its right end. With the ring reserve present the
+     lane must hold [ring 18][gap 3][pill 30] and still stop 42px before its
+     own right edge (34px key + the host's right:8px), hence min-width 93 and
+     padding-right 42. Above the host's floating-seat boundary the key is in
+     flow again and the lane is already wider than 93px, so both values are
+     inert there. Knob: the two numbers, 42 = key 34 + host offset 8.
+     Band: 390px and up, measured. Below 390 the tools lane's fixed controls
+     (measured 267px of intrinsic content) plus [ring][pill][key] do not fit
+     the row at all, so reserving the slot there only pushes the pill left
+     into the overflowing tools content: at 360px the pill's centre ended under
+     a tools control. That width class needs the row to wrap (the escape this
+     file already uses for the dual-primary form), not a narrower reservation. */
+  @media (min-width: 390px) {
+    [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([data-mobile-nav="stats-ring-reserve"]) {
+      min-width: 93px;
+      padding-right: 42px;
+    }
+  }
+  /* --- dsh-input-traffic Freeze pill: icon-only on phones (2026-10-10) ---
+     The pill is a third-party control (dsh-input-traffic's FreezeButton)
+     mounted in the host slot conversation.input.right, which sits inside the
+     trailing lane's standardControls. Its label is a plain text span with
+     white-space:nowrap, so its intrinsic width is the whole localized string:
+     measured 110.1px at 390px (x330, so it ran 50px past the viewport edge and
+     painted over the ring slot). The lane cannot shrink it below its text.
+     Fix: drop the label and paint an icon instead. The accessible name is not
+     affected: the button carries its own aria-label ("Freeze & append" /
+     "Resume", localized), so hiding the visible text keeps the name, and the
+     emoji is decorative generated content. The frozen state is read from the
+     button's own aria-pressed, so the icon flips with the control's state
+     without any locale string: the ice cube is the freeze action, the fire is
+     the resume action.
+     Anchor: the host slot marker data-slot="conversation.input.right" plus the
+     CSS-module class substring _freeze. That substring is unique across every
+     bundle installed in this profile (checked against all node_modules CSS and
+     JS), and no hashed prefix (BUSMDW_ here) appears in the selector. If
+     upstream renames the class the rule goes inert, it cannot cross-match.
+     Knob: the two paddings, the emoji size, and the two glyphs. */
+  [data-slot="conversation.input.right"] [class*="_freeze"] {
+    padding: 0 6px;
+    gap: 0;
+  }
+  [data-slot="conversation.input.right"] [class*="_freeze"] > [class*="_label"] {
+    display: none;
+  }
+  [data-slot="conversation.input.right"] [class*="_freeze"]::before {
+    content: "🧊";
+    font-size: 13px;
+    line-height: 1;
+  }
+  [data-slot="conversation.input.right"] [class*="_freeze"][aria-pressed="true"]::before {
+    content: "🔥";
+  }
 
   /* --- ContextMeter hit area on 0.1.7-rc.2+ (issue #140) ---
      The stats-line overlay parks the ring in the composer card's trailing

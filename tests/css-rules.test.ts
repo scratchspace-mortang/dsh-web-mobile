@@ -137,3 +137,57 @@ test('plugin-manager cards and rows are tappable as a whole on mobile (2026-10-0
     && block.selector.includes('button:not([class*="_rowOpen"])'))
   assert.ok(lifted.some((block) => /z-index:\s*2/.test(block.body)), '开关等交互件要比覆盖层再高一档')
 })
+
+test('the third-party Freeze pill is icon-only on phones (2026-10-10 实测)', () => {
+  // 真宿主 390px 取证：dsh-input-traffic 的 FreezeButton 挂在宿主槽
+  // conversation.input.right（在尾道 standardControls 里），label 是 nowrap 纯文本，
+  // 固有宽 = 整条本地化字符串 = 110.1px（x330，右缘出屏 50px，压在环槽上）。
+  // 修法 = 藏 label、画图标；可访问名不受影响（按钮自带 aria-label）。
+  const blocks = findRuleBlocks(LAYOUT_CSS)
+  const pill = blocks.find((block) =>
+    block.selector.includes('[data-slot="conversation.input.right"]')
+    && block.selector.includes('[class*="_freeze"]')
+    && !block.selector.includes('::before')
+    && !block.selector.includes('_label'))
+  assert.ok(pill !== undefined, 'Freeze 条必须有手机档规则')
+  assert.match(pill.body, /padding:\s*0 6px/, '收窄内边距')
+  const label = blocks.find((block) =>
+    block.selector.includes('[data-slot="conversation.input.right"]')
+    && block.selector.includes('[class*="_label"]'))
+  assert.ok(label !== undefined && /display:\s*none/.test(label.body), 'label 必须藏掉（可访问名走 aria-label）')
+  const icon = blocks.find((block) =>
+    block.selector.includes('[class*="_freeze"]::before')
+    && !block.selector.includes('aria-pressed'))
+  assert.ok(icon !== undefined, '未冻结态必须有图标 ::before')
+  assert.match(icon.body, /content:\s*"🧊"/, '冻结动作 = 冰块')
+  const pressed = blocks.find((block) =>
+    block.selector.includes('[class*="_freeze"][aria-pressed="true"]::before'))
+  assert.ok(pressed !== undefined, '冻结态必须换图标（读 aria-pressed，不吃本地化字符串）')
+  assert.match(pressed.body, /content:\s*"🔥"/, '恢复动作 = 火')
+  // 锚点纪律：哈希前缀不得进选择器，槽 marker 必须在。
+  for (const block of [pill, label, icon, pressed]) {
+    assert.ok(block.selector.includes('[data-slot="conversation.input.right"]'),
+      `锚在宿主槽 marker 上：${block.selector}`)
+    assert.doesNotMatch(block.selector, /BUSMDW/, '禁止把 CSS-module 哈希前缀写进选择器')
+  }
+})
+
+test('the trailing lane reserves the floating send key slot from 390px (2026-10-10 实测)', () => {
+  // 发送键被宿主浮成 position:absolute（出流），尾道固有宽度就不含它，车道塌到 20.9px（390px），
+  // 停在右缘的东西（圈占位、第三方 Freeze 条）全落进浮空键的绘制区。
+  // 修法 = 车道自己预留：min-width 93 = 圈 18 + gap 3 + 条 30 + 缝，padding-right 42 = 键 34 + 宿主 right:8px。
+  // 390px 以下不预留：工具道固定控件 267px 与 [圈][条][键] 在 360px 行里根本放不下，
+  // 预留只会把条推进溢出的工具道内容里（实测 360px 条心被工具控件盖住）。
+  const blocks = findRuleBlocks(LAYOUT_CSS)
+  const lane = blocks.find((block) =>
+    block.selector.includes('[class*="_trailing"]:has([data-mobile-nav="stats-ring-reserve"])')
+    && /min-width:/.test(block.body))
+  assert.ok(lane !== undefined, '尾道必须有预留规则')
+  assert.match(lane.body, /min-width:\s*93px/, '预留宽度 93')
+  assert.match(lane.body, /padding-right:\s*42px/, '预留发送键槽 42 = 34 + 8')
+  const css = LAYOUT_CSS
+  const at = css.indexOf('min-width: 93px')
+  assert.ok(at > 0, '规则在位')
+  assert.ok(css.slice(0, at).lastIndexOf('@media (min-width: 390px)') > css.lastIndexOf('top: calc(50% - 28px)'),
+    '预留必须包在 @media (min-width: 390px) 里，390 以下不生效')
+})
