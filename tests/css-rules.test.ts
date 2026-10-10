@@ -185,6 +185,7 @@ test('the trailing lane reserves the floating send key slot from 390px (2026-10-
   assert.ok(lane !== undefined, '尾道必须有预留规则')
   assert.match(lane.body, /min-width:\s*93px/, '预留宽度 93')
   assert.match(lane.body, /padding-right:\s*42px/, '预留发送键槽 42 = 34 + 8')
+  assert.match(lane.body, /flex:\s*0 0 auto/, '只吃预留量：车道不得再吸行内余量（实测吸到 135px 会挤掉工具道）')
   const css = LAYOUT_CSS
   const at = css.indexOf('min-width: 93px')
   assert.ok(at > 0, '规则在位')
