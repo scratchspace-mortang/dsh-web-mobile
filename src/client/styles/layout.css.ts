@@ -892,6 +892,36 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND
   [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]):has([class*="_primary"] ~ [class*="_primary"]) > [class*="_trailing"] > [class*="_primary"] {
     margin-left: 0;
   }
+  /* --- Send key lifted out of the ring slot (2026-10-10, collision fix) ---
+     The host floats the send key out of the lane's flow: its seat rule
+     [class$="_composerSeat"] [class$="_primary"] is
+     position:absolute; right:8px; top:50%; transform:translateY(-50%), live
+     only up to the host's own layout boundary (measured computed
+     position:absolute at 760/800/900px, static at 1000/1024/1100px). An
+     out-of-flow key contributes nothing to the lane's intrinsic width, so the
+     lane collapses onto the ring reserve and the reserve lands exactly where
+     the floating key paints. Measured headless 390x844 with the skin
+     stylesheets disabled, real session: lane 20.9px wide, reserve at x336,
+     key at x322-356 -- 341 px^2 of the 18x22 ring under the 34px key, and
+     elementFromPoint at the ring centre returned the send BUTTON, so the ring
+     was not tappable. At 800px the same collision measured 396 px^2 (lane
+     332.9px, reserve x727, key x713-747).
+     Fix: lift the floating key 28px above the seat's vertical centre. 28 =
+     17 (half the key) + 9 (half the ring) + 2 clearance. The key leaves the
+     row vertically and lands on the card's empty top-right; nothing in the
+     lane reflows, so the tools lane, the model pill and the row height are
+     untouched. top is inert on a static element, so the rule is a no-op
+     above the host boundary and needs no second media query.
+     Scope: only when the plugin's own ring reserve sits in the lane (the
+     collision needs the ring), and only the single-primary form -- the
+     dual-primary (subagent) form wraps the lane to a second row and is
+     governed by the wrap rule above.
+     Verified after the change: 0 px^2 at 320/390/430/760/800/900, key
+     position:static at 1000/1440 (rule inert), typed text keeps 10px
+     clearance to the key's left edge. Knob: this single 28px. */
+  [data-phase] [class*="_card"]:has(textarea, [data-composer-input]) [class*="_row"]:has([class*="_trailing"]) > [class*="_trailing"]:has([data-mobile-nav="stats-ring-reserve"]):not(:has([class*="_primary"] ~ [class*="_primary"])) > [class*="_primary"] {
+    top: calc(50% - 28px);
+  }
 
   /* --- ContextMeter hit area on 0.1.7-rc.2+ (issue #140) ---
      The stats-line overlay parks the ring in the composer card's trailing
