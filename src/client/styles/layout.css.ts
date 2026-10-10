@@ -955,13 +955,17 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND
      ::before paints the recycle glyph at the size the neighbouring icons use.
      The control's name is untouched: the switch button carries
      aria-label="Auto-continue", and the span is not the accessible name.
-     Knob: the band and the glyph size. */
+     Knob: the band and the glyph size.
+     The selector is keyed on the slot and on the switch's own span, not only on
+     the host's hashed label class: :is() takes the specificity of its most
+     specific argument, so the icon-only label does not depend on stylesheet
+     injection order after a skin reload. */
   @media (max-width: 430px) {
-    [data-slot="conversation.input.left"] [class*="dshAcComposerLabel"] {
+    [data-slot="conversation.input.left"] :is([class*="dshAcComposerLabel"], [role="switch"] > span:first-child) {
       font-size: 0;
       line-height: 0;
     }
-    [data-slot="conversation.input.left"] [class*="dshAcComposerLabel"]::before {
+    [data-slot="conversation.input.left"] :is([class*="dshAcComposerLabel"], [role="switch"] > span:first-child)::before {
       content: "♻️";
       font-size: 13px;
       line-height: 1;
