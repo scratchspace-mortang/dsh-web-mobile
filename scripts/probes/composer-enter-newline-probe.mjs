@@ -134,9 +134,12 @@ const STATE = `(() => {
     html: input === null ? '' : input.innerHTML,
     userRows: document.querySelectorAll('[data-chat-flow-kind="user"]').length,
     flowRows: document.querySelectorAll('[data-chat-flow-kind]').length,
-    // Diagnostic: the popup guard must be closed on a plain composer, or the
-    // rewrite would never arm.
-    cardListbox: document.querySelector(${JSON.stringify(COMPOSER_CARD)} + ' [role="listbox"]') !== null,
+    // Diagnostic: the popup guard only declines for a LAID-OUT listbox, so a
+    // plain composer must report zero of those or the rewrite would never arm.
+    // Nodes counts what is in the DOM; laidOut counts what the effect reads.
+    cardListboxNodes: document.querySelectorAll(${JSON.stringify(COMPOSER_CARD)} + ' [role="listbox"]').length,
+    cardListboxLaidOut: Array.from(document.querySelectorAll(${JSON.stringify(COMPOSER_CARD)} + ' [role="listbox"]'))
+      .some((el) => { const box = el.getBoundingClientRect(); return box.width > 0 && box.height > 0 && el.getClientRects().length > 0 }),
     sessionId,
     phase: document.querySelector('[data-phase="active"], [data-phase="hero"]')?.getAttribute('data-phase') ?? null,
   };
