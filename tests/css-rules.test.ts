@@ -192,3 +192,21 @@ test('the trailing lane reserves the floating send key slot from 390px (2026-10-
   assert.ok(css.slice(0, at).lastIndexOf('@media (min-width: 390px)') > css.lastIndexOf('top: calc(50% - 28px)'),
     '预留必须包在 @media (min-width: 390px) 里，390 以下不生效')
 })
+
+test('the phone row keeps the one-tap effort control visible (2026-11-19)', () => {
+  // dsh-remote-web-ui injects two compact taps and its compact-mode CSS hides
+  // the official trigger. Its effort tap drills straight into the reasoning
+  // level list; hiding both taps left no visible entry to the chooser on a
+  // phone. Only the cube is redundant: keep the effort tap, drop the cube.
+  const blocks = findRuleBlocks(LAYOUT_CSS)
+  const cube = blocks.find((block) => block.selector.includes('#dshRemoteModelPick'))
+  assert.ok(cube !== undefined, 'cube hiding rule must be present')
+  assert.match(cube.body, /display:\s*none/, 'the cube stays hidden')
+  assert.doesNotMatch(cube.selector, /#dshRemoteEffortPick/, 'the effort tap must not be inside the hide selector')
+  const hidden = blocks.filter((block) =>
+    block.selector.includes('#dshRemoteEffortPick') && /display:\s*none/.test(block.body))
+  assert.equal(hidden.length, 0, 'no rule may hide the one-tap effort control')
+  const mobile = LAYOUT_CSS.indexOf('@media (max-width: 1023px) and (pointer: coarse)')
+  const at = LAYOUT_CSS.indexOf('#dshRemoteModelPick')
+  assert.ok(mobile >= 0 && at > mobile, 'the picker rule must stay inside the mobile query')
+})

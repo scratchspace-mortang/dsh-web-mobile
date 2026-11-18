@@ -914,15 +914,20 @@ export const LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND
 
   /* dsh-remote-web-ui's mobile adaptation appends two compact taps to the
      composer tools row - a cube "Pick model" and a sliders "Pick reasoning
-     effort" - and leaves the official model trigger in place. Measured with
-     real clicks at 645px: cube, sliders, and the official trigger all open the
-     same Model+Effort menu ("Model qwen-strata Effort Medium"), so the row
-     carries three entries for one picker. The official trigger is the one that
-     names the current model, so the injected pair is the redundant one.
-     Owner of the injection: dsh-remote-web-ui mobile-adapt.js:545-553, ids
-     dshRemoteModelPick / dshRemoteEffortPick (mobile-only, so desktop is
-     untouched). Knob: hide this pair, or hide the official trigger instead. */
-  [data-composer-card] [class*="_tools"] :is(#dshRemoteModelPick, #dshRemoteEffortPick) {
+     effort" - and its compact-mode CSS hides the official model trigger
+     whenever that trigger carries an effort label (mobile-adapt.ts:228). Each
+     tap forwards to the official trigger and then drills straight into one
+     cell of the Model+Effort menu: the cube into the model list, the sliders
+     into the reasoning-effort list (mobile-adapt.ts:523-545, DRILL_INDEX
+     model:0 / effort:1). Hiding both taps therefore removed every visible
+     entry to the picker on a phone, including the one-tap route to the effort
+     levels - the reported defect. Keep the sliders and hide only the cube:
+     the model list stays one back-step away on the same menu, and the row
+     keeps a single model-picker button. This plugin appends its stylesheet
+     last, so the correction wins at any injection order. Injection ids:
+     dshRemoteModelPick / dshRemoteEffortPick (mobile-only; desktop untouched).
+     Knob: which of the two taps stays visible. */
+  [data-composer-card] [class*="_tools"] #dshRemoteModelPick {
     display: none;
   }
 
