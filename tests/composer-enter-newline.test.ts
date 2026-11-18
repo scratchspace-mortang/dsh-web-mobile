@@ -9,8 +9,9 @@
 // when the wiring breaks: the wrong argument, the shadow applied on a declined
 // verdict, a counter moved above its guard, the menu query run for every
 // keydown, the composition watch un-scoped or never reset, or a constant that
-// drifted from the host's markup. Source-text assertions cover only what needs
-// a real document (listener registration) or a real build (the plugin entry).
+// drifted from the host's markup. Source-text assertions cover what needs a real
+// document (listener registration), a real build (the plugin entry), and the
+// mobile-gate literal in the effect.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -270,6 +271,40 @@ test('a replaced composer input starts a fresh watch', () => {
   const next = dom.nextInput()
   assert.equal(dom.press(next.target).shiftKey, true)
   assert.equal(composerEnterStats.breaks, 1)
+})
+
+test('a compositionend window does not outlive its input', () => {
+  // The adopt reset must clear the 10 ms window as well as the flag: the host's
+  // root swap resets both, and a window left behind would decline the first
+  // Enter on the new input while the host sends.
+  const dom = fakeComposer(false)
+  dom.compose('start', dom.target)
+  dom.compose('end', dom.target)
+  dom.advance(COMPOSING_GRACE_MS - 1)
+  const next = dom.nextInput()
+  assert.equal(dom.press(next.target).shiftKey, true)
+  assert.equal(composerEnterStats.ime, 0)
+})
+
+test('a compositionend on a different input starts that input\'s window', () => {
+  // Order matters inside onCompositionEnd: the new input is adopted (which
+  // clears the watch) before the window is set, so the end belongs to the input
+  // it arrived on and the host's own root listener agrees.
+  const dom = fakeComposer(false)
+  dom.compose('start', dom.target)
+  const next = dom.nextInput()
+  dom.compose('end', next.target)
+  assert.equal(dom.press(next.target).shiftKey, false)
+  assert.equal(composerEnterStats.ime, 1)
+})
+
+test('a non-element target is ignored instead of throwing', () => {
+  // Composition and keydown targets can be a document or a text node; both
+  // listeners guard with `instanceof Element` and must simply pass.
+  const dom = fakeComposer(false)
+  dom.compose('start', {} as FakeElement)
+  assert.equal(dom.press({} as FakeElement).shiftKey, false)
+  assert.equal(composerEnterStats.seen, 0)
 })
 
 test('a keydown outside the composer input is ignored', () => {

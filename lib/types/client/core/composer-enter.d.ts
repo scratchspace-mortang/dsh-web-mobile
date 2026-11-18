@@ -9,9 +9,10 @@
  *
  * The plugin therefore rewrites a plain Enter into the Shift+Enter gesture
  * while the mobile branch is armed. The composer then takes the path it already
- * has for a shifted Enter — on iOS that path is the native `insertParagraph`,
- * so the node is a paragraph rather than a `\n` line break, and both are a new
- * line. Sending stays on the send button.
+ * has for a shifted Enter. On iOS that path ends in a paragraph: a real
+ * Shift+Enter arrives as the native `insertLineBreak`, while the shadowed plain
+ * Enter arrives as `insertParagraph`, which Lexical maps to INSERT_PARAGRAPH.
+ * Either way the composer gains a new line. Sending stays on the send button.
  *
  * The decision is a pure function so the cases that must NOT be rewritten are
  * pinned by tests instead of living only in a browser listener: an IME Enter, a
