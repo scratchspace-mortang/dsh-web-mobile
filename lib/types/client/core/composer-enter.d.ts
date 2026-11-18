@@ -16,7 +16,8 @@
  * pinned by tests instead of living only in a browser listener: an IME
  * candidate-pick Enter, a modified Enter (Ctrl/Cmd accelerate, Shift already a
  * line break, Alt is a shortcut), and an Enter that belongs to the command or
- * @-mention popup, whose highlighted row Enter picks.
+ * @-mention popup, whose highlighted row Enter picks. It reports WHY, so the
+ * debug badge can show a phone-side report instead of a silent no-op.
  */
 /** The keydown fields the decision reads (a DOM KeyboardEvent satisfies it). */
 export interface EnterGesture {
@@ -36,14 +37,25 @@ export interface EnterGesture {
     readonly keyCode: number;
 }
 /**
- * Decide whether this keydown must become the Shift+Enter line break.
+ * What the plugin does with one keydown: `break` rewrites it into the
+ * Shift+Enter line break, every other verdict leaves the host untouched.
+ */
+export type EnterVerdict = 'break' | 'other-key' | 'modifier' | 'ime' | 'menu';
+/**
+ * Decide what to do with this keydown.
+ *
+ * The IME test reads the same two signals the host's own keymap reads
+ * (`isComposing`, then the legacy 229 keyCode), so this decision can never
+ * disagree with the host about whether an Enter belongs to a composition. The
+ * composer root's `data-composer-composing` marker is deliberately NOT read:
+ * it is derived from the editor's long-lived composition state, so a stale
+ * marker (an engine that never delivers `compositionend`) would make this
+ * function decline while the host still treats the same keydown as a send.
+ *
  * @param gesture - the keydown's key and modifier/composition state.
- * @param composing - whether the composer root still carries its composition
- *   marker (it holds through the IME's closing keydown, which `isComposing`
- *   alone misses on Safari).
  * @param menuOpen - whether the command / @-mention popup is open; its
  *   highlighted row is what Enter picks there.
- * @returns true when the caller should rewrite the gesture to Shift+Enter.
+ * @returns `break` when the caller should rewrite the gesture to Shift+Enter.
  */
-export declare function shouldBreakLineOnEnter(gesture: EnterGesture, composing: boolean, menuOpen: boolean): boolean;
+export declare function enterGestureVerdict(gesture: EnterGesture, menuOpen: boolean): EnterVerdict;
 //# sourceMappingURL=composer-enter.d.ts.map

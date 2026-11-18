@@ -14,7 +14,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { shouldBreakLineOnEnter } from '../src/client/core/composer-enter.ts'
+import { enterGestureVerdict } from '../src/client/core/composer-enter.ts'
 
 const SOURCE = readFileSync(
   fileURLToPath(new URL('../src/client/effects/composer-enter-newline.ts', import.meta.url)),
@@ -37,36 +37,50 @@ const PLAIN_ENTER = {
 } as const
 
 test('plain Enter is rewritten into the line break', () => {
-  assert.equal(shouldBreakLineOnEnter(PLAIN_ENTER, false, false), true)
+  assert.equal(enterGestureVerdict(PLAIN_ENTER, false), 'break')
 })
 
 test('every modifier keeps its upstream meaning', () => {
   // Shift already breaks the line, Ctrl/Cmd select accelerated delivery, Alt is
   // an application shortcut: none of them is ours to rewrite.
-  assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, shiftKey: true }, false, false), false)
-  assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, ctrlKey: true }, false, false), false)
-  assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, metaKey: true }, false, false), false)
-  assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, altKey: true }, false, false), false)
+  assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, shiftKey: true }, false), 'modifier')
+  assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, ctrlKey: true }, false), 'modifier')
+  assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, metaKey: true }, false), 'modifier')
+  assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, altKey: true }, false), 'modifier')
 })
 
 test('an Enter the IME owns is never rewritten', () => {
   // Native composition flag.
-  assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, isComposing: true }, false, false), false)
+  assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, isComposing: true }, false), 'ime')
   // Legacy signal engines emit without isComposing.
-  assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, keyCode: 229 }, false, false), false)
-  // Safari delivers the closing keydown after compositionend; the composer
-  // root still carries its marker for that window.
-  assert.equal(shouldBreakLineOnEnter(PLAIN_ENTER, true, false), false)
+  assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, keyCode: 229 }, false), 'ime')
 })
 
 test('an open command / @-mention popup keeps Enter as its pick gesture', () => {
-  assert.equal(shouldBreakLineOnEnter(PLAIN_ENTER, false, true), false)
+  assert.equal(enterGestureVerdict(PLAIN_ENTER, true), 'menu')
 })
 
 test('only the exact Enter key is touched', () => {
   for (const key of ['enter', 'Escape', ' ', 'Tab', 'Process']) {
-    assert.equal(shouldBreakLineOnEnter({ ...PLAIN_ENTER, key }, false, false), false, key)
+    assert.equal(enterGestureVerdict({ ...PLAIN_ENTER, key }, false), 'other-key', key)
   }
+})
+
+test('the composer composition marker never decides the gesture', () => {
+  // The host derives `data-composer-composing` from the editor's long-lived
+  // composition state, so it can stay set after an engine drops compositionend.
+  // The host's own keymap sends in that window (its IME test is the event's
+  // isComposing / keyCode 229), and reading the marker here would decline the
+  // rewrite while the host sends — the reported "Enter still sends" failure.
+  // The decision must therefore read only the event, like the host does.
+  assert.doesNotMatch(SOURCE, /data-composer-composing|COMPOSING_ATTRIBUTE|hasAttribute\(/)
+  assert.equal(enterGestureVerdict(PLAIN_ENTER, false), 'break')
+})
+
+test('a popup only declines while it is laid out', () => {
+  // A zero-size listbox left in the card must not turn the rewrite off.
+  assert.match(SOURCE, /getBoundingClientRect\(\)/)
+  assert.match(SOURCE, /getClientRects\(\)\.length > 0/)
 })
 
 test('the effect rewrites the gesture in the capture phase, before the composer', () => {
@@ -84,13 +98,21 @@ test('the rewrite is scoped to the composer input inside the composer card', () 
   assert.match(SOURCE, /input\.closest\(COMPOSER_CARD_SELECTOR\)/)
 })
 
-test('the decision reads the composition marker and the popup listbox', () => {
-  assert.match(SOURCE, /data-composer-composing/)
-  assert.match(SOURCE, /input\.hasAttribute\(COMPOSING_ATTRIBUTE\)/)
+test('the popup lookup reads the listbox the host mounts inside the card', () => {
   // The command / @-mention popup mounts into `conversation.input.overlay`, the
   // zero-height anchor inside the card, and renders a role="listbox".
   assert.match(SOURCE, /\[role="listbox"\]/)
-  assert.match(SOURCE, /card\.querySelector\(POPUP_SELECTOR\) !== null/)
+  assert.match(SOURCE, /card\.querySelectorAll\(POPUP_SELECTOR\)/)
+})
+
+test('the effect counts what it decided for the debug badge', () => {
+  // A silent no-op is indistinguishable from a stale bundle on a phone, so the
+  // badge line reads these counters.
+  assert.match(SOURCE, /export const composerEnterStats/)
+  assert.match(SOURCE, /composerEnterStats\.armed = true/)
+  assert.match(SOURCE, /composerEnterStats\.breaks \+= 1/)
+  assert.match(SOURCE, /composerEnterStats\.ime \+= 1/)
+  assert.match(SOURCE, /composerEnterStats\.menu \+= 1/)
 })
 
 test('the effect is gated on the mobile branch, so desktop keeps Enter-to-send', () => {

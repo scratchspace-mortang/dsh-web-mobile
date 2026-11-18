@@ -1,4 +1,5 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import { composerEnterStats } from './effects/composer-enter-newline.ts'
 import { DESKTOP_QUERY, MOBILE_QUERY } from './effects/phone-chrome.ts'
 /**
  * Debug badge — ?mobile-nav-debug=1
@@ -48,6 +49,7 @@ export function installDebugBadge(ctx: ClientContext): void {
         `URL ${location.pathname}${location.search}`,
         `W ${innerWidth} x ${innerHeight} dpr ${devicePixelRatio}`,
         `mq≤1023 ${matchMedia(MOBILE_QUERY).matches}  mq≥1024 ${matchMedia(DESKTOP_QUERY).matches}`,
+        `enter armed ${composerEnterStats.armed} seen ${composerEnterStats.seen} break ${composerEnterStats.breaks} menu ${composerEnterStats.menu} ime ${composerEnterStats.ime}`,
         `safeTop framePad ${frame === null ? 'n/a' : getComputedStyle(frame).paddingTop}  rightPanel ${rightPanel()}`,
         `css ${q('style[data-plugin-css*="mobile"]')}  frame ${!!frame}`,
         `previewCol ${vis('[data-aionui-preview-col]')}  explorerCol ${vis('[data-aionui-explorer-col]')}`,
