@@ -195,9 +195,11 @@ test('the trailing lane reserves the floating send key slot from 390px (2026-10-
 
 test('the phone row keeps the one-tap effort control visible (2026-11-19)', () => {
   // dsh-remote-web-ui injects two compact taps and its compact-mode CSS hides
-  // the official trigger. Its effort tap drills straight into the reasoning
-  // level list; hiding both taps left no visible entry to the chooser on a
-  // phone. Only the cube is redundant: keep the effort tap, drop the cube.
+  // the official trigger on phones. Hiding both taps left no visible entry to
+  // the chooser, including the effort row. Only the cube is redundant: keep
+  // the effort tap, drop the cube. The tap opens the root menu (the host
+  // portals it, so the injected drill query cannot match); Model and Effort
+  // are both one cell away there.
   const blocks = findRuleBlocks(LAYOUT_CSS)
   const cube = blocks.find((block) => block.selector.includes('#dshRemoteModelPick'))
   assert.ok(cube !== undefined, 'cube hiding rule must be present')
@@ -208,5 +210,13 @@ test('the phone row keeps the one-tap effort control visible (2026-11-19)', () =
   assert.equal(hidden.length, 0, 'no rule may hide the one-tap effort control')
   const mobile = LAYOUT_CSS.indexOf('@media (max-width: 1023px) and (pointer: coarse)')
   const at = LAYOUT_CSS.indexOf('#dshRemoteModelPick')
-  assert.ok(mobile >= 0 && at > mobile, 'the picker rule must stay inside the mobile query')
+  assert.ok(mobile >= 0 && at > mobile, 'the mobile media block must exist before the rule')
+  // Offset comparison alone also passes when the rule sits AFTER the block:
+  // count braces instead, so a desktop-leaking mutation fails this assertion.
+  let depth = 0
+  for (const ch of LAYOUT_CSS.slice(0, at)) {
+    if (ch === '{') depth++
+    else if (ch === '}') depth--
+  }
+  assert.ok(depth > 0, 'the picker rule must be nested inside the mobile media query')
 })
