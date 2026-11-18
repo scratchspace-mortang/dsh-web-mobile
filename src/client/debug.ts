@@ -1,5 +1,5 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import { composerEnterStats } from './effects/composer-enter-newline.ts'
+import { composerEnterStats } from './core/composer-enter-handler.ts'
 import { DESKTOP_QUERY, MOBILE_QUERY } from './effects/phone-chrome.ts'
 /**
  * Debug badge — ?mobile-nav-debug=1
