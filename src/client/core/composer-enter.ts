@@ -8,8 +8,10 @@
  * report is 「Enter 键老是直接发送，不换行」.
  *
  * The plugin therefore rewrites a plain Enter into the Shift+Enter gesture
- * while the mobile branch is armed. Everything the composer already does with
- * a shifted Enter then applies, and sending stays on the send button.
+ * while the mobile branch is armed. The composer then takes the path it already
+ * has for a shifted Enter — on iOS that path is the native `insertParagraph`,
+ * so the node is a paragraph rather than a `\n` line break, and both are a new
+ * line. Sending stays on the send button.
  *
  * The decision is a pure function so the cases that must NOT be rewritten are
  * pinned by tests instead of living only in a browser listener: an IME Enter, a

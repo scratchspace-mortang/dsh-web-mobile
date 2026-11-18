@@ -5,16 +5,17 @@ import { enterGestureVerdict } from './composer-enter.ts'
  * tests can drive it (which argument, which counter, when the shadow applies)
  * instead of grepping source text.
  *
- * Everything here is a decision the host itself already makes; the constants
- * name the host code each one mirrors:
+ * Everything here mirrors a decision the host itself already makes:
  * - `[data-composer-input]` / `[data-composer-card]` — the Lexical surface and
  *   the InputBar card (`ui-conversation`'s DraftEditor / InputBar).
  * - `MENU_PICK_SELECTOR` — `ui-input-trigger`'s MenuView marks the highlighted
  *   row with `aria-selected`; its controller consumes Enter only when
  *   `highlight !== null`.
- * - `COMPOSING_GRACE_MS` — `registerComposerKeymap`'s `composingUntil` window,
- *   one tick past `compositionend`, because Safari delivers its closing
- *   keydown late.
+ * - `COMPOSING_GRACE_MS` and the per-input reset — `registerComposerKeymap`'s
+ *   `composing`/`composingUntil` watch, which rides one editor root and resets
+ *   on every root swap. The watch here is scoped the same way: only events
+ *   whose target sits inside the composer input count, and a different input
+ *   element starts a fresh watch.
  */
 
 /** The composer card root (InputBar). */
@@ -62,10 +63,10 @@ export const resetComposerEnterStats = (armed: boolean): void => {
 export interface ComposerEnterHandler {
   /** Capture-phase keydown listener. */
   onKeyDown: (event: KeyboardEvent) => void
-  /** Document-level compositionstart listener (mirrors the host's watch). */
-  onCompositionStart: () => void
-  /** Document-level compositionend listener (mirrors the host's watch). */
-  onCompositionEnd: () => void
+  /** Capture-phase compositionstart listener. */
+  onCompositionStart: (event: CompositionEvent) => void
+  /** Capture-phase compositionend listener. */
+  onCompositionEnd: (event: CompositionEvent) => void
 }
 
 /**
@@ -74,15 +75,41 @@ export interface ComposerEnterHandler {
  * @returns the listeners to install and remove.
  */
 export function createComposerEnterHandler(now: () => number = Date.now): ComposerEnterHandler {
-  // The host's own watch (registerComposerKeymap): true through a composition
-  // and for one tick after compositionend.
+  // The host's watch (registerComposerKeymap): true through a composition on
+  // one editor root and for one tick after that root's compositionend.
   let composing = false
   let composingUntil = 0
+  let watchedInput: Element | null = null
 
-  const onCompositionStart = (): void => {
+  // A different input element is a different editor root to the host, which
+  // resets its watch on every swap. Without this, a composition whose end was
+  // never delivered (the input unmounted mid-composition) would keep the flag
+  // set and silently disable the rewrite for the rest of the session.
+  const adoptInput = (input: Element | null): Element | null => {
+    if (input === null) return null
+    if (input !== watchedInput) {
+      composing = false
+      composingUntil = 0
+      watchedInput = input
+    }
+    return input
+  }
+
+  const compositionInput = (event: CompositionEvent): Element | null => {
+    const target = event.target
+    if (!(target instanceof Element)) return null
+    return target.closest(COMPOSER_INPUT_SELECTOR)
+  }
+
+  const onCompositionStart = (event: CompositionEvent): void => {
+    // A composition anywhere else (the command popup's search field, a settings
+    // input) is not the composer's and must not count.
+    if (adoptInput(compositionInput(event)) === null) return
     composing = true
   }
-  const onCompositionEnd = (): void => {
+
+  const onCompositionEnd = (event: CompositionEvent): void => {
+    if (adoptInput(compositionInput(event)) === null) return
     composing = false
     composingUntil = now() + COMPOSING_GRACE_MS
   }
@@ -92,6 +119,7 @@ export function createComposerEnterHandler(now: () => number = Date.now): Compos
     if (!(target instanceof Element)) return
     const input = target.closest<HTMLElement>(COMPOSER_INPUT_SELECTOR)
     if (input === null) return
+    adoptInput(input)
     composerEnterStats.seen += 1
     const verdict = enterGestureVerdict({
       key: event.key,

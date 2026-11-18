@@ -3,16 +3,17 @@
  * tests can drive it (which argument, which counter, when the shadow applies)
  * instead of grepping source text.
  *
- * Everything here is a decision the host itself already makes; the constants
- * name the host code each one mirrors:
+ * Everything here mirrors a decision the host itself already makes:
  * - `[data-composer-input]` / `[data-composer-card]` — the Lexical surface and
  *   the InputBar card (`ui-conversation`'s DraftEditor / InputBar).
  * - `MENU_PICK_SELECTOR` — `ui-input-trigger`'s MenuView marks the highlighted
  *   row with `aria-selected`; its controller consumes Enter only when
  *   `highlight !== null`.
- * - `COMPOSING_GRACE_MS` — `registerComposerKeymap`'s `composingUntil` window,
- *   one tick past `compositionend`, because Safari delivers its closing
- *   keydown late.
+ * - `COMPOSING_GRACE_MS` and the per-input reset — `registerComposerKeymap`'s
+ *   `composing`/`composingUntil` watch, which rides one editor root and resets
+ *   on every root swap. The watch here is scoped the same way: only events
+ *   whose target sits inside the composer input count, and a different input
+ *   element starts a fresh watch.
  */
 /** The composer card root (InputBar). */
 export declare const COMPOSER_CARD_SELECTOR = "[data-composer-card]";
@@ -47,10 +48,10 @@ export declare const resetComposerEnterStats: (armed: boolean) => void;
 export interface ComposerEnterHandler {
     /** Capture-phase keydown listener. */
     onKeyDown: (event: KeyboardEvent) => void;
-    /** Document-level compositionstart listener (mirrors the host's watch). */
-    onCompositionStart: () => void;
-    /** Document-level compositionend listener (mirrors the host's watch). */
-    onCompositionEnd: () => void;
+    /** Capture-phase compositionstart listener. */
+    onCompositionStart: (event: CompositionEvent) => void;
+    /** Capture-phase compositionend listener. */
+    onCompositionEnd: (event: CompositionEvent) => void;
 }
 /**
  * Build the Enter handler.

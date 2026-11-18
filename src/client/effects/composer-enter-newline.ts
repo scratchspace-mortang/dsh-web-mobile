@@ -17,10 +17,15 @@ import { installMobileEffect } from './phone-chrome.ts'
  *
  * Fix: rewrite the gesture, not the outcome. In the capture phase, before the
  * composer's own keydown listener (it rides the editor root, bubble phase),
- * shadow `shiftKey` on the event instance. The host then sees exactly the
- * hardware Shift+Enter it already handles — the same composer text model, no
- * second implementation of it. Sending stays on the send button, and
- * Ctrl/Cmd+Enter keeps its accelerated delivery.
+ * shadow `shiftKey` on the event instance. The host then sees the hardware
+ * Shift+Enter it already handles — the same composer text model, no second
+ * implementation of it. Sending stays on the send button, and Ctrl/Cmd+Enter
+ * keeps its accelerated delivery.
+ *
+ * Known ceiling: on iOS, `@lexical/plain-text` declines that branch and the
+ * native `insertParagraph` lands instead, so the inserted node is a paragraph
+ * rather than a `\n` line break. Both are a new line in the composer; only the
+ * node type differs, and no Safari/WebKit run has confirmed it here.
  *
  * Scope is MOBILE_QUERY (`max-width: 1023px` + `pointer: coarse`), the same
  * gate as the rest of the phone chrome, so desktop windows keep Enter-to-send.
