@@ -11,6 +11,7 @@ import { installSubagentChipTouch } from './effects/subagent-chip-touch.ts'
 import { installSessionMenuDelete } from './effects/session-menu.ts'
 import { installComposerKeyboardGuard } from './effects/composer-keyboard-guard.ts'
 import { installComposerKeyboardLift } from './effects/composer-keyboard-lift.ts'
+import { installComposerEnterNewline } from './effects/composer-enter-newline.ts'
 import { installComposerPlusToggle } from './effects/composer-plus-toggle.ts'
 import { installWorkspaceChipToggle } from './effects/workspace-chip-toggle.ts'
 import { installTeamChipToggle } from './effects/team-chip-toggle.ts'
@@ -304,6 +305,11 @@ export function apply(ctx: ClientContext): void {
   // iOS: the host Lexical scroll helper mis-scrolls the window on every
   // keystroke (issue #149); pin the composer seat above the keyboard.
   installComposerKeyboardLift(ctx)
+  // Phone composer (owner report 2026-11-18): a touch keyboard has no Shift
+  // key, and upstream reserves the line break for Shift+Enter, so plain Enter
+  // could only send. Rewrite the gesture to Shift+Enter and leave sending to
+  // the send button. Desktop keeps Enter-to-send (MOBILE_QUERY gate).
+  installComposerEnterNewline(ctx)
   installComposerPlusToggle(ctx)
   // Hero workspace chip: the host's picker portaled its Menu with
   // `anchor={null}`, so its own outside-pointerdown close eats the trigger's

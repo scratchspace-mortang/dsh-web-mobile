@@ -24,9 +24,9 @@
   │     ├─ debug.ts          ← ?mobile-nav-debug=1 诊断徽章
   │     ├─ components/       ← MobileNavToggle / MobileDrawerFooter / ComposerFileButton / open-files-panel.ts / file-share-*（分享按钮·纯核·文案）
   │     ├─ core/             ← reconciler-core.ts（零 import）+ raf-scheduler.ts · css-rules.ts · sessions-compat.ts · layout-compat.ts · icon-compat.ts（宿主图标跨代命名兼容）· attachment-mention-core.ts · prototype-focus-shadow.ts（两个键盘守卫共享的一个 focus 影子，#84）
-  │     ├─ effects/          ← 27 个效果模块：phone-chrome · sidebar-swipe ·
+  │     ├─ effects/          ← 28 个效果模块：phone-chrome · sidebar-swipe ·
   │     │                       gesture-guard · subagent-chip-touch · composer-keyboard-guard ·
-  │     │                       composer-keyboard-lift · composer-paste-guard ·
+  │     │                       composer-keyboard-lift · composer-enter-newline · composer-paste-guard ·
   │     │                       composer-file-picker ·
   │     │                       attachment-mention · file-share ·
   │     │                       shortcut-modal-keyboard-guard · model-menu-keyboard-guard · plugin-card-tap · session-focus-guard ·
@@ -44,8 +44,8 @@
   │  ├─ cdp-probe.mjs        ← 主探针 14 项核心断言（+6 集成，EXPECTED_FAILURES 基线）
   │  ├─ cdp-swipe-probe/failures · cdp-zoom-probe · cdp-compat-contracts (.mjs)
   │  ├─ css-structure-check.mjs ← CSS 结构检测器（已接入 test:core）
-  │  └─ probes/              ← 22 个回归锚点（builtin-only，可单跑）
-  ├─ tests/                  ← 54 个 .test.ts（node --test，type-stripping 直跑）
+  │  └─ probes/              ← 23 个回归锚点（builtin-only，可单跑）
+  ├─ tests/                  ← 55 个 .test.ts（node --test，type-stripping 直跑）
   ├─ docs/
   │  ├─ specs/               ← 8 篇权威设计文档（入库）
   │  ├─ audits/ · maintenance/pitfalls.md · upstream/（runbook + compat-contracts.json + host-jank-feedback.md）· fork-wzxmt-zhc/
@@ -130,6 +130,7 @@ dsh web
   - `subagent-chip-touch.ts` — touch compatibility for the subagent count chip and touch nav-arm close (see Pitfalls).
   - `composer-keyboard-guard.ts` — iOS-only: tapping the composer's send/stop/+ buttons must not re-raise a dismissed keyboard (upstream `keepFocus` focuses the editor on `mousedown`, PR #48; DOM-contract notes in the file header).
   - `composer-keyboard-lift.ts` — iOS-only（#149）：宿主 Lexical 选区滚动助手把布局坐标可视带和视口坐标 caret rect 比对，iOS 键盘的非零窗口滚动让它每次击键误发 `window.scrollBy`，composer 整块沉进系统辅助条。本效果在编辑器持焦期间用 screen-space-only 的 `translateY(−overlap)`（seat rect.bottom vs `vv.height`）把 seat 钉回键盘顶；pinch 或双通道分歧时 fail-open；纯核 `computeComposerLift` 由测试钉死。
+  - `composer-enter-newline.ts` — 手机档 Enter＝换行（2026-11-18 报障「Enter 键老是直接发送，不换行」）：宿主 keymap 把裸 Enter 当发送手势、换行只留给 Shift+Enter，而触屏键盘没有 Shift。本效果在 capture 阶段给事件实例影子 `shiftKey`，让宿主自己走 Shift+Enter 那条换行路径（文本模型仍归宿主），发送留给发送键、Ctrl/Cmd+Enter 的加速投递不变；IME 组字键与命令/@ 菜单打开时的 Enter（`role="listbox"` 在卡内）不重写。判定纯核 `shouldBreakLineOnEnter` 由测试钉死，活体锚点 `scripts/probes/composer-enter-newline-probe.mjs`（手机 expect=newline / 桌面 expect=send）。
   - `composer-file-picker.ts` — 手机档回形针入口（2026-10-06 报障）：宿主自带的两选项入口 0.1.6 起已删除，直点隐藏 input 只弹系统选择器（形态不可控、也无法「只挑图片」）。本效果吞掉入口的 click，弹插件自绘的两选项**贴锚点小浮层**（上传图片 / 上传附件；同日店主否掉了整宽底部弹层形态，改为按回形针 rect 定位、上方优先、夹进视口，行高 34px / 行间距 0，无「取消」行，点浮层外或返回键关闭），选完仍点宿主那个 hidden input —— 按选项**临时**写 accept（图片 `image/*`、附件显式 `*/*`，`click()` 返回后立刻还原；附件那路 2026-10-07 从「不改属性」改成显式 `*/*` 是**待真机确认的实验**：空 acceptTypes 在 DSHA 上起的是文档选择器而不是「打开方式」应用列表）；浮层挂 `document.body`（同 delete-dialog 的取舍），CSS 在 base.css.ts。**定位必须重锚定**（2026-10-07 真机报障：点回形针会让软键盘收起、布局整体下移一个键盘高，只在打开时算一次坐标的 `position:fixed` 浮层就停在会话中部）：视口一变（`resize` / `orientationchange` / `visualViewport` 的 `resize`+`scroll`）重算 top/left，开完再跟 12 帧 rAF 追键盘动画，锚点脱离文档时收起。
   - `workspace-chip-toggle.ts` — hero 工作区 chip 的「再点关闭」：宿主把选择器菜单开成
     `<Menu anchor={null} portal>`，触发器在 Menu 子树外，于是它的「外部 pointerdown 关闭」
@@ -275,7 +276,7 @@ dsh web
 
 ## Testing & QA
 
-- Automated gates: `pnpm verify` (typecheck) and `pnpm test:core`（54 个测试文件，glob 覆盖 `tests/` 全部）. `pnpm build` additionally exercises the custom client bundler. Use `git diff --check` for whitespace hygiene.
+- Automated gates: `pnpm verify` (typecheck) and `pnpm test:core`（55 个测试文件，glob 覆盖 `tests/` 全部）. `pnpm build` additionally exercises the custom client bundler. Use `git diff --check` for whitespace hygiene.
 - There is no linter, formatter, or coverage setup; the CI workflow (`.github/workflows/ci.yml`) additionally runs the bundle smoke (`node scripts/client-bundle-smoke.mjs`) and the lib freshness gate `git diff --exit-code lib`.
 - After source/layout changes, install the linked plugin in a real DSH Web profile, restart `dsh web`, and check both sides of the breakpoint:
   - **Narrow phone (~390px):** rail hidden; drawer/FAB/backdrop open and close; Escape; session-row action menus do not close the drawer; settings remains usable; Files opens explorer/preview sheets; session-log/footer actions work; preview fullscreen opens and resets.
